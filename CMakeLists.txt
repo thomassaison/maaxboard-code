@@ -99,14 +99,6 @@ FetchContent_Declare(json
     GIT_REPOSITORY https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent
     GIT_TAG v3.7.3)
 
-#if (TESTING)
-#   enable_testing()
-#   find_package(GTest)
-#   add_executable(caca tests/first.cc)
-#   target_link_libraries(caca gtest gtest_main)
-#   add_test(NAME caca COMMAND caca)
-#endif(TESTING)
-
 FetchContent_GetProperties(json)
 if(NOT json_POPULATED)
     FetchContent_Populate(json)
@@ -115,8 +107,6 @@ endif()
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
-
-#configure_file(config.h.in config.h)
 
 set(IMX8M_SRC
     src/main.cc
