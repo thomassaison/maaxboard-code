@@ -130,3 +130,5 @@ target_link_libraries(imx8m PRIVATE nlohmann_json::nlohmann_json Threads::Thread
 target_include_directories(imx8m PUBLIC src)
 
 message("-- C++ compiler flags: ${CMAKE_CXX_FLAGS}")
+
+install(TARGETS imx8m DESTINATION bin)
