@@ -10,8 +10,10 @@ namespace imx8m {
         class ConfigHost {
         public:
             ConfigHost(const std::string& ip, const unsigned short port) noexcept
-                : __ip{ip}, __port{port}
-            {}
+                : __ip{ip}
+            {
+                __port = port;
+            }
 
             ConfigHost()  = default;
             ~ConfigHost() = default;
@@ -40,7 +42,7 @@ namespace imx8m {
         class Config {
         public:
             Config(const char *path) noexcept;
-            
+
             Config(const std::string& path) noexcept
                 : Config(path.c_str())
             {}
@@ -87,6 +89,7 @@ namespace imx8m {
             void __config_is_master(nlohmann::json& conf) noexcept;
             void __config_master(nlohmann::json& conf) noexcept;
             void __config_default(nlohmann::json& conf) noexcept;
+
         };
     }
 }

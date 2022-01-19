@@ -107,7 +107,8 @@ namespace imx8m {
         void Config::__config_default(nlohmann::json& conf) noexcept {
             bool found_port, found_ip;
             std::string ip;
-            unsigned short port;
+
+            unsigned short port = 0;
 
             for(auto it0 = conf.begin(); it0 != conf.end(); ++it0) {
                 
@@ -151,6 +152,8 @@ namespace imx8m {
                         __error_str = "Master port is undefine";
                         return;
                     }
+
+                    /* port is init at this time */
 
                     __connections.push_back(ConfigHost(ip, port));
                     break;
