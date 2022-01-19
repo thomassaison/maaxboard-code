@@ -18,7 +18,7 @@ namespace {
     TEST(Config, wrongJson){
         auto config = Config("failure.json"); //This doesn't exist
         
-        if (config.is_okay())
+        if (!config.is_okay())
             SUCCEED();
         else
             FAIL();
