@@ -33,6 +33,8 @@ namespace imx8m {
     class Imx8m
     {
     public:
+        using TimePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
+
         Imx8m(const char *path) noexcept;
 
         Imx8m(std::string& path) noexcept
@@ -59,25 +61,6 @@ namespace imx8m {
             static_assert(sizeof(Imx8m) > 10);
         }
 
-        static bool check_packet(const imx8m_packet *packet) {
-            size_t sum, i;
-            const uint8_t *tmp = reinterpret_cast<const uint8_t *>(packet);
-
-            if (packet->v_major != 1 || packet->v_minor != 0)
-                return false;
-
-            for (sum = i = 0; i < sizeof(*packet); ++i)
-                sum += tmp[i];
-            sum = ~sum;
-
-            return sum == packet->checksum;
-        }
-
-        static bool check_packet(const imx8m_packet& packet) {
-            return check_packet(&packet);
-        }
-
-
     private:
         int                 __epoll_fd;
         epoll_event         __events[10];
@@ -92,16 +75,31 @@ namespace imx8m {
 
         [[noreturn]] void __run_master() noexcept;
 
+        static bool checksum(const imx8m_packet *packet) {
+            size_t i, res = 0;
+            const uint8_t *tmp = reinterpret_cast<const uint8_t *>(packet);
+            for (i = 0; i < sizeof(*packet); ++i)
+                res += tmp[i];
+            res = ~res;
+            return res;
+        }
+
+        static bool check_packet(const imx8m_packet *packet) {
+            return packet->v_major == 1
+                && packet->v_minor == 0
+                && packet->checksum == checksum(packet);
+        }
+
+        static bool check_packet(const imx8m_packet& packet) {
+            return check_packet(&packet);
+        }
 
         void __do_recv(const imx8m_packet *packet) noexcept {
 
-            if (!check_packet(packet))
-                return;
-
-            std::chrono::nanoseconds dur(packet->duration);
-            __th_timer.queue_task_at(std::chrono::time_point<std::chrono::high_resolution_clock>(dur),
-                             &Imx8m::__take_picture,
-                             this);
+            [[gnu::likely]] if (check_packet(packet)) {
+                std::chrono::nanoseconds dur(packet->duration);
+                __th_timer.queue(TimePoint(dur), &Imx8m::__take_picture, this);
+            }
 
             delete packet;
         }
