@@ -12,6 +12,7 @@
 #define IMX8M_DEFAULT_THPRIO 50
 
 namespace imx8m {
+
     struct imx8m_packet {
         uint8_t v_major : 4,
                 v_minor : 4;
@@ -92,18 +93,29 @@ namespace imx8m {
         [[noreturn]] void __run_master() noexcept;
 
 
-
         void __do_recv(const imx8m_packet *packet) noexcept {
 
             if (!check_packet(packet))
                 return;
 
-            std::chrono::milliseconds dur(packet->duration);
+            std::chrono::nanoseconds dur(packet->duration);
             __th_timer.queue_task_at(std::chrono::time_point<std::chrono::high_resolution_clock>(dur),
                              &Imx8m::__take_picture,
                              this);
 
             delete packet;
+        }
+
+        void __do_stat() noexcept
+        {
+
+            auto tmp = std::chrono::high_resolution_clock::now();
+            // recv
+            TaStructStat stat(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now() - tmp));
+        }
+
+        void __recv_test_con() noexcept {
+
         }
 
         void __take_picture() noexcept {
