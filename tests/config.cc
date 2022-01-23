@@ -3,8 +3,6 @@
 #include "imx8m/config/config.hh"
 
 using namespace imx8m::config;
-
-//architecture example from : https://github.com/google/googletest/blob/main/googletest/samples/sample4_unittest.cc
 namespace {
 
     TEST(Config, isMaster) {
@@ -23,7 +21,6 @@ namespace {
         
         EXPECT_TRUE(configMaster.is_master());
         EXPECT_FALSE(configDefault.is_master());
-
     }
 
     TEST(Config, wrongJson) {

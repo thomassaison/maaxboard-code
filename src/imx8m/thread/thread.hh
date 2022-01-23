@@ -17,10 +17,15 @@ namespace imx8m {
         {
         public:
             Thread() noexcept
-                : __th{std::thread(&Thread::__run, this)}
+                : __th{std::thread(&Thread::__run, this)},
+                  __stop{false}
             {}
 
-            ~Thread() = default;
+            ~Thread() noexcept {
+                __stop = true;
+                __cond.notify_all();
+                __th.join();
+            };
 
             Thread(const Thread&) = delete;
             Thread& operator=(const Thread&) = delete;
@@ -56,12 +61,13 @@ namespace imx8m {
 
         private:
             std::thread                            __th;
+            std::mutex                             __mutex;
             std::condition_variable                __cond;
             std::queue<std::packaged_task<void()>> __jobs;
-            std::mutex                             __jobs_mutex;
+            std::atomic<bool>                      __stop;
 
             void __add_task(std::packaged_task<void()>&& task) noexcept;
-            [[noreturn]] void __run() noexcept;
+            void __run() noexcept;
         };
     };
 };

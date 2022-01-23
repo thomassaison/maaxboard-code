@@ -34,7 +34,7 @@ namespace imx8m {
 
             template <class F, class... Args, class R = std::result_of_t<F&(Args...)>>
             std::future<R> queue(F&& f, Args&&... args) noexcept {
-                /* Thread::queue is thread safe so no mutex needed */
+                /* Thread::queue is thread safe and vector is const at this point so no mutex needed */
                 auto ret = __th_queue[__th_first_idx].queue(std::forward<F>(f), std::forward<Args>(args)...);
                 __update_idx();
                 return ret;
@@ -46,6 +46,11 @@ namespace imx8m {
                 return __th_first_idx;
             }
 
+            size_t size() noexcept {
+                std::unique_lock<std::mutex> lock(__mutex);
+                return __th_queue.size();
+            }
+
             const Thread& get_current_thread() const noexcept {
                 return __th_queue[__th_first_idx];
             }
@@ -54,7 +59,6 @@ namespace imx8m {
             std::mutex          __mutex;
             std::vector<Thread> __th_queue;
             std::atomic<size_t> __th_first_idx;
-            std::atomic<size_t> __th_last_idx;
 
             void __update_idx() noexcept;
         };

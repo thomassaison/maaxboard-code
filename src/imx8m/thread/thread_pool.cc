@@ -5,7 +5,6 @@ namespace imx8m {
         ThreadPool::ThreadPool(const unsigned int nb) noexcept
         {
             __th_first_idx = 0;
-            __th_last_idx  = nb - 1;
             for (unsigned int i = 0; i < nb; ++i)
                 __th_queue.push_back(Thread());
         }
@@ -29,15 +28,10 @@ namespace imx8m {
             tmp.exchange(__th_first_idx);
             __th_first_idx.exchange(th.__th_first_idx);
             th.__th_first_idx.exchange(tmp);
-
-            tmp.exchange(__th_last_idx);
-            __th_first_idx.exchange(th.__th_last_idx);
-            th.__th_first_idx.exchange(tmp);
         }
 
         void ThreadPool::__update_idx() noexcept {
             __th_first_idx = (__th_first_idx + 1) % __th_queue.size();
-            __th_last_idx = (__th_first_idx + 1) % __th_queue.size();
         }
     }
 }
