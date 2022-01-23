@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.16)
 
 option(DEBUG_MODE "Compile in debug mode" ON)
 
@@ -81,7 +81,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=old-style-cast")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=missing-noreturn")
 
 if (DEBUG_MODE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Og -g3")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 else()
     add_definitions(-DNDEBUG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
@@ -148,13 +148,24 @@ if(ENABLE_TESTING)
 
 	include(GoogleTest)
 	add_executable(tconfig tests/config.cc src/imx8m/config/config.hh src/imx8m/config/config.cc)
+    add_executable(tlogger tests/logger.cc src/imx8m/logger/logger.hh src/imx8m/logger/logger.cc)
 
 	gtest_add_tests(TARGET    tconfig
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 		        TEST_LIST TEST_CONFIG)
 
+    gtest_add_tests(TARGET    tlogger
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+		        TEST_LIST TEST_LOGGER)
+
+        
 	set_tests_properties(${TEST_CONFIG} PROPERTIES TIMEOUT 30)
+    set_tests_properties(${TEST_LOGGER} PROPERTIES TIMEOUT 30)
+
 	target_link_libraries(tconfig PRIVATE nlohmann_json::nlohmann_json Threads::Threads gtest_main)
+    target_link_libraries(tlogger PRIVATE gtest_main)
+
+    target_include_directories(tlogger PUBLIC src)
 	target_include_directories(tconfig PUBLIC src)
 
 endif()
