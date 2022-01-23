@@ -1,11 +1,13 @@
 #pragma once
 
+#include <queue>
 #include <thread>
 #include <mutex>
 #include <future>
 #include <functional>
 #include <chrono>
 #include <condition_variable>
+#include <optional>
 
 #include <imx8m/container/ring_vector.hh>
 
@@ -17,10 +19,11 @@ namespace imx8m {
             using Clock = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
             TimerThread() noexcept
-                : __th{std::thread(&TimerThread::__run, this)}
+                : __th{std::thread(&TimerThread::__run, this)},
+                  __stop{false}
             {}
 
-            ~TimerThread()                             = default;
+            ~TimerThread() noexcept;
 
             TimerThread(const TimerThread&)            = delete;
             TimerThread& operator=(const TimerThread&) = delete;
@@ -40,11 +43,12 @@ namespace imx8m {
             bool set_sched(const int policy, const int priority) noexcept;
             
             template <class F, class ...Args, class R = std::result_of_t<F&(Args...)>>
-            std::future<R> queue_task_at(const Clock& time, F&& f, Args&&... args)
+            std::future<R> queue(const Clock& time, F&& f, Args&&... args)
             {
                 std::packaged_task<R()> task(std::bind(f, std::forward<Args>(args)...));
                 std::future<R> res(task.get_future());
-                __add_task_at(std::move(TimerThreadTask(std::move(task), time)));
+                Task t(std::move(task), time);
+                __add_task_at(std::move(t));
                 return res;
             }
 
@@ -53,8 +57,18 @@ namespace imx8m {
                     If not you  should probably change the implementation because
                     insert on vector maye be slow)
                 */
-                static_assert(sizeof(std::chrono::milliseconds) < 32);
+                static_assert(sizeof(std::chrono::nanoseconds) < 32);
                 static_assert(sizeof(std::packaged_task<void()>) < 32);
+            }
+
+            bool can_insert(const Clock& time) {
+                std::unique_lock<std::mutex> l(__mutex);
+                return __jobs.back() <= time;
+            }
+
+            bool in_work() noexcept {
+                std::unique_lock<std::mutex> l(__mutex);
+                return !__jobs.empty();
             }
             
         private:
@@ -64,7 +78,7 @@ namespace imx8m {
             public:
                 Task() = default;
 
-                Task(std::packaged_task<void()>& task, const Clock& time) noexcept
+                Task(std::packaged_task<void()>&& task, const Clock& time) noexcept
                     : __at{time}
                 {
                     __task.swap(task);
@@ -79,7 +93,7 @@ namespace imx8m {
 
                 Task& operator=(const Task&) = delete;
 
-                Task& operator=(Task& task) noexcept
+                Task& operator=(Task&& task) noexcept
                 {
                     this->swap(task);
                     return *this;
@@ -91,28 +105,48 @@ namespace imx8m {
                     return c < __at;
                 }
 
+                bool operator<(const Task& t) const noexcept {
+                    return t < __at;
+                }
+
                 bool operator<=(const Clock& c) const noexcept {
                     return c <= __at;
+                }
+
+                bool operator<=(const Task& t) const noexcept {
+                    return t <= __at;
                 }
 
                 bool operator>(const Clock& c) const noexcept {
                     return c > __at;
                 }
 
+                bool operator>(const Task& t) const noexcept {
+                    return t > __at;
+                }
+
                 bool operator>=(const Clock& c) const noexcept {
                     return c >= __at;
                 }
 
-                bool operator==(const Task& t) const noexcept {
-                    return t.__at == __at;
+                bool operator>=(const Task& t) const noexcept {
+                    return t >= __at;
                 }
 
                 bool operator==(const Clock& c) const noexcept {
                     return c == __at;
                 }
 
+                bool operator==(const Task& t) const noexcept {
+                    return t == __at;
+                }
+
                 bool operator!=(const Clock& c) const noexcept {
-                    return c != __at;
+                    return c == __at;
+                }
+
+                bool operator!=(const Task& t) const noexcept {
+                    return t != __at;
                 }
 
                 void operator()() noexcept {
@@ -120,7 +154,7 @@ namespace imx8m {
                 }
 
                 void swap(Task& task) noexcept {
-                    __task.swap(task.__task);
+                    __task.swap(    task.__task);
                     std::swap(__at, task.__at);
                 }
 
@@ -132,50 +166,17 @@ namespace imx8m {
                 Clock                      __at;
                 std::packaged_task<void()> __task;
             };
-            
-            class RingQueue {
-            public:
-                void swap(RingQueue& vec) noexcept;
 
-                size_t search(const Task& elm) const noexcept {
-                    return (!this->empty()) ? __search(0, __len - 1, elm) : 0;
-                }
+            std::thread             __th;
+            std::mutex              __mutex;
+            std::condition_variable __cond;
+            std::queue<Task>        __jobs;
+            std::atomic<bool>       __stop;
 
-                Task& front() noexcept {
-                    return __vector[__begin_idx];
-                }
+            /*container::UniqueRingVectorSorted<TimerThreadTask> __jobs_queue;*/
 
-                bool empty() const noexcept {
-                    return __len == 0;
-                }
-
-                bool insert(Task&& elm) noexcept;
-
-                void pop() noexcept;
-
-                template<typename F>
-                void foreach(F&& fn) noexcept;
-
-                size_t len() const noexcept {
-                    return __len;
-                }
-
-            private:
-                std::vector<Task> __vector;
-                size_t            __len       = 0;
-                size_t            __begin_idx = 0;
-                size_t            __end_idx   = 0;
-            }
-
-            std::thread                                        __th;
-            std::mutex                                         __mutex;
-            std::condition_variable                            __cond;
-
-            container::UniqueRingVectorSorted<TimerThreadTask> __jobs_queue;
-
-            void __add_task_at(TimerThreadTask&& task) noexcept;
-
-            [[noreturn]] void __run() noexcept;
+            void __add_task_at(Task&& task) noexcept;
+            void __run() noexcept;
         };
     }
 }

@@ -106,14 +106,6 @@ namespace imx8m {
             delete packet;
         }
 
-        void __do_stat() noexcept
-        {
-
-            auto tmp = std::chrono::high_resolution_clock::now();
-            // recv
-            TaStructStat stat(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now() - tmp));
-        }
-
         void __recv_test_con() noexcept {
 
         }

@@ -21,11 +21,7 @@ namespace imx8m {
                   __stop{false}
             {}
 
-            ~Thread() noexcept {
-                __stop = true;
-                __cond.notify_all();
-                __th.join();
-            };
+            ~Thread() noexcept;
 
             Thread(const Thread&) = delete;
             Thread& operator=(const Thread&) = delete;

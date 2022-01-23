@@ -3,6 +3,12 @@
 namespace imx8m {
     namespace thread {
 
+        Thread::~Thread() noexcept {
+            __stop = true;
+            __cond.notify_all();
+            __th.join();
+        };
+
         bool Thread::in_work() noexcept {
             std::unique_lock<std::mutex> lock(__mutex);
             return !__jobs.empty();
