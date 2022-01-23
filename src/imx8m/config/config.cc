@@ -3,8 +3,6 @@
 
 #include "config.hh"
 
-
-
 namespace imx8m {
     namespace config {
 
@@ -98,7 +96,7 @@ namespace imx8m {
                 }
             }
 
-            if (!__connections.empty()) {
+            if (__connections.empty()) {
                 __error_str = "Master don't have any clients";
                 return;
             }
@@ -109,6 +107,9 @@ namespace imx8m {
             std::string ip;
 
             unsigned short port = 0;
+
+	    found_port = false;
+	    found_ip = false;
 
             for(auto it0 = conf.begin(); it0 != conf.end(); ++it0) {
                 
@@ -160,7 +161,7 @@ namespace imx8m {
                 }
             }
 
-            if (!__connections.empty()) {
+            if (__connections.empty()) {
                 __error_str = "\'master\' value not found";
                 return;
             }
@@ -172,13 +173,13 @@ namespace imx8m {
                            found_port;
 
             nlohmann::json json_conf;
-            
-            found_master   = false;
-            found_ip       = false;
-            found_port     = false;
 
             {
                 std::ifstream stream(path);
+		if (!stream.good()) {
+			__error_str = "Cannot open config";
+			return;
+		}
                 stream >> json_conf;
             }
 
@@ -189,6 +190,11 @@ namespace imx8m {
                 return;
             }
 
+            found_master   = false;
+            found_ip       = false;
+            found_port     = false;
+
+
             for(auto it0 = json_conf.begin();
                 it0 != json_conf.end()
                 && (!found_master || !found_port || !found_ip);
@@ -198,6 +204,7 @@ namespace imx8m {
                 if (it0.key() == "is-master") {
                     __config_is_master(it0.value());
                     found_master = true;
+		    std::cout << __is_master << std::endl;
                 }
                 else if (it0.key() == "ip") {
                     __config_self_ip(it0.value());
@@ -207,9 +214,11 @@ namespace imx8m {
                     __config_self_port(it0.value());
                     found_port = true;
                 }
+
+		std::cout << it0.key() << std::endl;
             }
 
-            [[gnu::unlikely]] if (found_ip) {
+            [[gnu::unlikely]] if (!found_ip) {
                 __error_str = "\'ip\' definition not found";
                 return;
             }

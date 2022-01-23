@@ -7,9 +7,9 @@
 
 #include "config/config.hh"
 
-namespace imx8m {
+#define ARR_SZ(x) (sizeof(x) / sizeof(*(x)))
 
-    thread::TimerThread timer_th;
+namespace imx8m {
 
     Imx8m::Imx8m(const char *path) noexcept {
         struct sched_param param;
@@ -85,8 +85,9 @@ namespace imx8m {
                                                     &param) != 0
                               || !__th_pool.set_sched(SCHED_FIFO,
                                                       IMX8M_DEFAULT_THPRIO + 1)
-                              || !timer_th.set_sched(SCHED_FIFO,
-                                                     IMX8M_DEFAULT_THPRIO + 5))
+                              || !__th_timer.set_sched(SCHED_FIFO,
+                                                       IMX8M_DEFAULT_THPRIO
+                                                       + 5))
         {
             std::cerr << "imx8m: system error: pthread_setschedparam"
                       << std::endl;
@@ -96,32 +97,41 @@ namespace imx8m {
 
         /* TODO: __th_picture = std::thread(); epoll_event; etc... */
     }
-    
+
     void Imx8m::__run_default() noexcept {
         int nfd;
         ssize_t ret;
         socklen_t socklen;
 
+        imx8m_packet *packet;
+
+
         for (;;) {
 
-            while ((nfd = epoll_wait(__epoll_fd,
-                                  __events,
-                                  sizeof(__events) / sizeof(*__events),
-                                  -1)) == -1)
+            [[gnu::unlikely]] while ((nfd = epoll_wait(__epoll_fd,
+                                                       __events,
+                                                       ARR_SZ(__events),
+                                                       -1)) == -1)
             {
                 if (errno == EINTR)
                     continue;
+
+                /* Exit because epoll_wait can only failed with bad param if errno != EINTR */
                 std::cerr << "imx8m: system error: epoll_wait" << std::endl;
                 exit(EXIT_FAILURE);
             }
 
             for (int i = 0; i < nfd; ++i) {
+                packet = new(std::nothrow) imx8m_packet;
+
+                [[gnu::unlikely]] if (packet == nullptr)
+                    break;
 
                 [[gnu::unlikely]] while ((ret = recvfrom(__my_socket,
-                                                         NULL /* TODO: buffer*/,
-                                                         0 /* TODO: len */,
+                                                         packet,
+                                                         sizeof(*packet),
                                                          0 /* flags */,
-                                                         reinterpret_cast<struct sockaddr *>(&__sa),
+                                                         reinterpret_cast<sockaddr *>(&__sa),
                                                          &socklen) == -1))
                 {
                     if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)
@@ -131,10 +141,7 @@ namespace imx8m {
                 [[gnu::unlikely]] if (ret == -1)
                     break;
 
-                __th_pool.queue(&Imx8m::__do_nothing, this);
-
-                /* TODO: let thread pool to process value */
-                
+                __th_pool.queue(&Imx8m::__do_recv, this, packet);
             }
         }
         // TODO
@@ -142,5 +149,7 @@ namespace imx8m {
 
     void Imx8m::__run_master() noexcept {
         // TODO
+        for(;;)
+            continue;
     }
 }

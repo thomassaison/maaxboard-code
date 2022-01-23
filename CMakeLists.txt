@@ -1,6 +1,8 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.16)
 
 option(DEBUG_MODE "Compile in debug mode" ON)
+
+option(ENABLE_TESTING "enabling tests" ON)
 
 # Don't try to enable this option, it doesn't work now
 option(ARM_CROSS_COMPILE "Cross compile for linux arm system" OFF)
@@ -62,13 +64,13 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wshadow")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wdouble-promotion")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wformat=2")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wformat-security")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wundef")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wundef")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-common")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnon-virtual-dtor")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wold-style-cast")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wsign-conversion")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wmissing-noreturn")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wmissing-noreturn")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnonnull")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wunused")
 
@@ -76,10 +78,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wunused")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=nonnull")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=unused")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=old-style-cast")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=missing-noreturn")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=missing-noreturn")
 
 if (DEBUG_MODE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Og -g3")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 else()
     add_definitions(-DNDEBUG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
@@ -122,6 +124,7 @@ set(IMX8M_HDR
     src/imx8m/thread/thread.hh
     src/imx8m/thread/thread_pool.hh
     src/imx8m/thread/timer_thread.hh
+    src/imx8m/container/ring_vector.hh
 )
 
 add_executable(imx8m ${IMX8M_SRC} ${IMX8M_HDR})
@@ -132,3 +135,38 @@ target_include_directories(imx8m PUBLIC src)
 message("-- C++ compiler flags: ${CMAKE_CXX_FLAGS}")
 
 install(TARGETS imx8m DESTINATION bin)
+if(ENABLE_TESTING)
+
+	FetchContent_Declare(
+		googletest
+		URL https://github.com/google/googletest/archive/609281088cfefc76f9d0ce82e1ff6c30cc3591e5.zip
+	)
+
+	FetchContent_MakeAvailable(googletest)
+			
+
+	enable_testing()
+
+	include(GoogleTest)
+	add_executable(tconfig tests/config.cc src/imx8m/config/config.hh src/imx8m/config/config.cc)
+    add_executable(tlogger tests/logger.cc src/imx8m/logger/logger.hh src/imx8m/logger/logger.cc)
+
+	gtest_add_tests(TARGET    tconfig
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+		        TEST_LIST TEST_CONFIG)
+
+    gtest_add_tests(TARGET    tlogger
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+		        TEST_LIST TEST_LOGGER)
+
+        
+	set_tests_properties(${TEST_CONFIG} PROPERTIES TIMEOUT 30)
+    set_tests_properties(${TEST_LOGGER} PROPERTIES TIMEOUT 30)
+
+	target_link_libraries(tconfig PRIVATE nlohmann_json::nlohmann_json Threads::Threads gtest_main)
+    target_link_libraries(tlogger PRIVATE gtest_main)
+
+    target_include_directories(tlogger PUBLIC src)
+	target_include_directories(tconfig PUBLIC src)
+
+endif()

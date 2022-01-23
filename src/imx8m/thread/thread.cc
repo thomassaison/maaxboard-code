@@ -21,7 +21,6 @@ namespace imx8m {
 
         void Thread::__run() noexcept {
             std::packaged_task<void()> task;
-
             for (;;) {
 
                 {
@@ -30,8 +29,6 @@ namespace imx8m {
                     task.swap(__jobs.front());
                     __jobs.pop();
                 }
-
-
                 task();
             }
         }

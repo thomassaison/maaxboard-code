@@ -19,11 +19,20 @@ namespace imx8m {
             return res;
         }
 
-
         void ThreadPool::swap(ThreadPool& th) noexcept {
+            std::atomic<size_t> tmp;
+            
+            std::unique_lock<std::mutex> lock(__mutex);
+
             __th_queue.swap(th.__th_queue);
-            std::swap(__th_first_idx, th.__th_first_idx);
-            std::swap(__th_last_idx, th.__th_last_idx);
+
+            tmp.exchange(__th_first_idx);
+            __th_first_idx.exchange(th.__th_first_idx);
+            th.__th_first_idx.exchange(tmp);
+
+            tmp.exchange(__th_last_idx);
+            __th_first_idx.exchange(th.__th_last_idx);
+            th.__th_first_idx.exchange(tmp);
         }
 
         void ThreadPool::__update_idx() noexcept {

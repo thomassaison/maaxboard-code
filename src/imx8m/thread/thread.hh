@@ -7,6 +7,8 @@
 #include <thread>
 #include <functional>
 
+#include <algorithm>
+
 #include <pthread.h>
 
 namespace imx8m {
@@ -32,6 +34,10 @@ namespace imx8m {
             Thread& operator=(Thread&& th) noexcept {
                 this->swap(th);
                 return *this;
+            }
+
+            auto get_id() const noexcept {
+                return __th.get_id();
             }
 
             bool set_sched(const int policy, const int priority) noexcept;
