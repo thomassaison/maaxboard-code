@@ -8,7 +8,7 @@
 
 #include "thread/timer_thread.hh"
 #include "thread/thread_pool.hh"
-
+#include "thread/timerstat.hh"
 #define IMX8M_DEFAULT_THPRIO 50
 
 namespace imx8m {
@@ -29,6 +29,11 @@ namespace imx8m {
         int64_t duration;
                 
     } __attribute__((__packed__));
+
+    struct timerstat {
+        long                __max  = 0;
+        long                __min = 0;
+    };
 
     class Imx8m
     {
@@ -87,11 +92,16 @@ namespace imx8m {
         sockaddr_in         __sa;
         thread::ThreadPool  __th_pool;
         thread::TimerThread __th_timer;
+        struct timerstat    __timerstat;
 
         [[noreturn]] void __run_default() noexcept;
 
         [[noreturn]] void __run_master() noexcept;
 
+
+        void __mean(long &v) noexcept{
+            __mean += (v + __timer1) / 2;
+        }
 
         void __do_recv(const imx8m_packet *packet) noexcept {
 
@@ -106,12 +116,52 @@ namespace imx8m {
             delete packet;
         }
 
-        void __do_stat() noexcept
-        {
+        void __do_stat(const size_t &nb) noexcept {
+            timerstat stat;
+            imx8m_packet packet;
+            for (size_t i = 0; i < nb; ++i){
+                bzero(&packet, sizeof(packet));
+                packet.v_major = 1;
+                packet.type = IMX8M_TEST_CON;
+                socklen_t len = 0; //TODO
+            //TODO CHECKSUM
+                auto timer1 = std::chrono::high_resolution_clock::now();
+                [[gnu::unlikely]] while ((ret = sendto(__my_socket,
+                                                         &packet,
+                                                         sizeof(packet),
+                                                         0 /* flags */,
+                                                         reinterpret_cast<sockaddr *>(&__sa) /* todo */,
+                                                         &len) == -1))
+                {
+                    if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
+                        std::cerr << "imx8m: sendto error" << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
+                }
 
-            auto tmp = std::chrono::high_resolution_clock::now();
-            // recv
-            TaStructStat stat(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now() - tmp));
+                [[gnu::unlikely]] while ((ret = recvfrom(__my_socket,
+                                                         &packet,
+                                                         sizeof(packet),
+                                                         0 /* flags */,
+                                                         reinterpret_cast<sockaddr *>(&__sa),
+                                                         &len) == -1))
+                {
+                    if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
+                        std::cerr << "imx8: recvfrom error" << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
+                }
+
+                // TODO check packet
+
+                auto result = __subs_timer(timer1);
+                stat.__max = std::max(stat.__max, result);
+                stat.__min = std::min(stat.__min, result);
+            }
+        }
+
+        std::chrono::nanoseconds __subs_timer(std::chrono::nanoseconds &t) noexcept {
+            return result(t - std::chrono::high_resolution_clock::now());
         }
 
         void __recv_test_con() noexcept {
@@ -122,5 +172,9 @@ namespace imx8m {
 
         }
 
+      
     };    
+    long __roundMax(long a, long b){
+        return (a + (b - 1)) / b;
+    }
 };
