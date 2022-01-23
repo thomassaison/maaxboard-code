@@ -2,8 +2,8 @@
 
 #include <vector>
 #include <string>
-#include <nlohmann/json.hpp>
 
+#include <nlohmann/json.hpp>
 
 namespace imx8m {
     namespace config {
@@ -26,11 +26,11 @@ namespace imx8m {
                 __port = port;
             }
 
-            std::string& get_ip() noexcept {
+            const std::string& get_ip() const noexcept {
                 return __ip;
             }
 
-            unsigned short get_port() noexcept {
+            unsigned short get_port() const noexcept {
                 return __port;
             }
 
@@ -49,31 +49,31 @@ namespace imx8m {
 
             ~Config() = default;
 
-            bool is_ok() noexcept {
+            bool is_ok() const noexcept {
                 return __error_str.empty();
             }
 
-            bool is_master() noexcept {
-                return !__is_master;
+            bool is_master() const noexcept {
+                return __is_master;
             }
 
-            std::vector<ConfigHost>& get_connections() noexcept {
+            const std::vector<ConfigHost>& get_connections() const noexcept  {
                 return __connections;
             }
 
-            ConfigHost& get_connections_idx(const size_t idx) noexcept {
+            const ConfigHost& get_connections_idx(const size_t idx) const noexcept {
                 return __connections[idx];
             }
 
-            std::string& get_self_ip() noexcept {
+            const std::string& get_self_ip() const noexcept {
                 return __self_host.get_ip();
             }
 
-            unsigned short get_self_port() noexcept {
+            unsigned short get_self_port() const noexcept {
                 return __self_host.get_port();
             }
 
-            std::string& get_error_str() noexcept {
+            const std::string& get_error_str() const noexcept {
                 return __error_str;
             }
 
@@ -89,7 +89,6 @@ namespace imx8m {
             void __config_is_master(nlohmann::json& conf) noexcept;
             void __config_master(nlohmann::json& conf) noexcept;
             void __config_default(nlohmann::json& conf) noexcept;
-
         };
     }
 }

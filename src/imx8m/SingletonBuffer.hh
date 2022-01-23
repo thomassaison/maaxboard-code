@@ -20,30 +20,39 @@ protected:
 public:
 
 	SingletonBuffer(SingletonBuffer& other) = delete;
-	void operator=(const SingletonBuffer&) = delete;
-	~SingletonBuffer() {
-		if (this->__file.is_open())
-			this->__file.close();
+
+	SingletomBuffer& operator=(const SingletonBuffer&) = delete;
+
+	SingletomBuffer(SingletomBuffer&& sb)
+	{
+
 	}
+
+	~SingletonBuffer() = default;
 
 	void init(const std::string &string);
 
 	void push(const std::string& string);
+
 	void push(const char* string) {
 		this->push(std::string(string));
 	}
+
 	void my_push(const std::string& s);
 	void flush();
 
 	static SingletonBuffer* GetInstance();
 	static SingletonBuffer* GetInstance(const std::string &string);
+
 	void flush_mutex();
-	void debug()const ;
-	std::vector<char> getBuffer(){
+
+	void debug() const;
+
+	const std::vector<char>& getBuffer() const {
 		return this->__buffer;
 	}
 
-	bool is_okay() {
+	bool is_okay() const {
 		return !this->__error;
 	}
 

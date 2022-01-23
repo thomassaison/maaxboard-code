@@ -25,7 +25,7 @@ void SingletonBuffer::my_push(const std::string& s) {
 		std::copy(s.begin(), s.end(), std::back_inserter(this->__buffer));
 		this->__buffer.push_back('\n');
 	}
-	else{
+	else {
 		std::copy(s.begin(), s.end(), std::back_inserter(this->__cache));
 		this->__cache.push_back('\n');
 	}
