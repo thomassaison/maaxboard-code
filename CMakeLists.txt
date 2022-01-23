@@ -72,7 +72,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wold-style-cast")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wsign-conversion")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wmissing-noreturn")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnonnull")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wunused")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wunused")
 
 # Some warnings whose could'nt be ignored
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=nonnull")
@@ -81,7 +81,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=old-style-cast")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=missing-noreturn")
 
 if (DEBUG_MODE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Og -g3")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 else()
     add_definitions(-DNDEBUG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
@@ -106,6 +106,7 @@ if(NOT json_POPULATED)
     FetchContent_Populate(json)
     add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
+
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
@@ -124,12 +125,16 @@ set(IMX8M_HDR
     src/imx8m/thread/thread.hh
     src/imx8m/thread/thread_pool.hh
     src/imx8m/thread/timer_thread.hh
-    src/imx8m/container/ring_vector.hh
-)
+    src/imx8m/container/ring_vector.hh)
 
 add_executable(imx8m ${IMX8M_SRC} ${IMX8M_HDR})
 
-target_link_libraries(imx8m PRIVATE nlohmann_json::nlohmann_json Threads::Threads)
+target_link_libraries(
+    imx8m 
+    PRIVATE nlohmann_json::nlohmann_json
+            Threads::Threads
+)
+
 target_include_directories(imx8m PUBLIC src)
 
 message("-- C++ compiler flags: ${CMAKE_CXX_FLAGS}")
@@ -142,19 +147,79 @@ if(ENABLE_TESTING)
 	)
 
 	FetchContent_MakeAvailable(googletest)
-			
 
 	enable_testing()
-
 	include(GoogleTest)
-	add_executable(tconfig tests/config.cc src/imx8m/config/config.hh src/imx8m/config/config.cc)
 
-	gtest_add_tests(TARGET    tconfig
-			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-		        TEST_LIST TEST_CONFIG)
+	add_executable(
+        tconfig
+        tests/config.cc
+        src/imx8m/config/config.hh
+        src/imx8m/config/config.cc
+    )
+
+	gtest_add_tests(
+        TARGET              tconfig
+		WORKING_DIRECTORY   ${CMAKE_CURRENT_SOURCE_DIR}
+		TEST_LIST           TEST_CONFIG
+    )
 
 	set_tests_properties(${TEST_CONFIG} PROPERTIES TIMEOUT 30)
-	target_link_libraries(tconfig PRIVATE nlohmann_json::nlohmann_json Threads::Threads gtest_main)
+
+	target_link_libraries(
+        tconfig
+        PRIVATE nlohmann_json::nlohmann_json
+                gtest_main
+    )
+
 	target_include_directories(tconfig PUBLIC src)
+
+    add_executable(
+        tthread
+        tests/thread.cc
+        src/imx8m/thread/thread.hh
+        src/imx8m/thread/thread.cc
+    )
+
+    gtest_add_tests(
+        TARGET              tthread
+		WORKING_DIRECTORY   ${CMAKE_CURRENT_SOURCE_DIR}
+		TEST_LIST           TEST_THREAD
+    )
+
+	set_tests_properties(${TEST_THREAD} PROPERTIES TIMEOUT 30)
+
+	target_link_libraries(
+        tthread
+        PRIVATE Threads::Threads
+                gtest_main
+    )
+
+	target_include_directories(tthread PUBLIC src)
+
+    add_executable(
+        tthread_pool
+        tests/thread_pool.cc
+        src/imx8m/thread/thread.hh
+        src/imx8m/thread/thread.cc
+        src/imx8m/thread/thread_pool.hh
+        src/imx8m/thread/thread_pool.cc
+    )
+
+    gtest_add_tests(
+        TARGET              tthread_pool
+		WORKING_DIRECTORY   ${CMAKE_CURRENT_SOURCE_DIR}
+		TEST_LIST           TEST_THREAD_POOL
+    )
+
+	set_tests_properties(${TEST_THREAD_POOL} PROPERTIES TIMEOUT 30)
+
+	target_link_libraries(
+        tthread_pool
+        PRIVATE Threads::Threads
+                gtest_main
+    )
+
+	target_include_directories(tthread_pool PUBLIC src)
 
 endif()
