@@ -1,14 +1,9 @@
-#include "SingletonBuffer.hh"
+#include "logger.hh"
 
-SingletonBuffer* SingletonBuffer::GetInstance(const std::string &string) {
-	if (__SingletonBuffer == nullptr) {
-		__SingletonBuffer = new SingletonBuffer();
-		__SingletonBuffer->init(string);
-	}
-	return __SingletonBuffer;
-}
+namespace imx8m{
+	namespace logger{
 
-void SingletonBuffer::push(const std::string &string) {
+void Logger::push(const std::string &string) noexcept{
 	//lock guard is automatically released when lock goes out of scope
 	const std::lock_guard<std::mutex> lock(this->__mutex);
 	std::cout << "PUSH : before\n";
@@ -20,7 +15,7 @@ void SingletonBuffer::push(const std::string &string) {
 	debug();
 }
 
-void SingletonBuffer::my_push(const std::string& s) {
+void Logger::my_push(const std::string& s) noexcept{
 	if (!this->__full) {
 		std::copy(s.begin(), s.end(), std::back_inserter(this->__buffer));
 		this->__buffer.push_back('\n');
@@ -31,9 +26,8 @@ void SingletonBuffer::my_push(const std::string& s) {
 	}
 }
 
-
-void SingletonBuffer::init(const std::string &string) {
-	this->__buffer.reserve(PREALLOC_SIZE);
+/*
+void Logger::init(const std::string &string) {
 	std::cout << "init\n";
 	debug();
 	this->__file.exceptions(std::ifstream::badbit);
@@ -47,28 +41,43 @@ void SingletonBuffer::init(const std::string &string) {
 		this->__error = true;
 
 }
+*/
 
-SingletonBuffer* SingletonBuffer::GetInstance() {
-	if (__SingletonBuffer == nullptr) {
-		__SingletonBuffer = new SingletonBuffer();
-		__SingletonBuffer->__error = true;
+
+void Logger::swap(Logger &sb) noexcept{
+		std::unique_lock<std::mutex> l1(__mutex);
+		std::unique_lock<std::mutex> l2(sb.__mutex);
+		
+		this->__buffer.swap(sb.__buffer);
+		this->__cache.swap(sb.__cache);
+		std::swap(__file, sb.__file);
+		std::swap(__error, sb.__error);
+		std::swap(__full, sb.__full);
 	}
-	return __SingletonBuffer;
-}
 
-void SingletonBuffer::flush() {
+
+void Logger::flush() noexcept{
 	const std::lock_guard<std::mutex> lock(this->__mutex);
 	flush_mutex();
 }
 
-void SingletonBuffer::flush_mutex() {
-	std::ostream_iterator<char> output_iterator(this->__file, "");
-	std::cout << "flush\n";
-	debug();
-	std::copy(this->__buffer.begin(), this->__buffer.end(), output_iterator);
+void Logger::flush_mutex() noexcept{
+	ssize_t ret;
+
+	while((ret = write(__file, __buffer.data(), __buffer.size() * sizeof(char))) < 0)
+		if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK)
+			break;
+
 	this->__buffer.clear();
 	this->__full = false;
-	if (this->__cache.size() >= PREALLOC_SIZE) {
+
+	if (!__cache.empty()){
+		while((ret = write(__file, __buffer.data(), __buffer.size() * sizeof(char))) < 0)
+			if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK)
+				break;
+		__cache.clear();
+	}
+/*	if (this->__cache.size() >= PREALLOC_SIZE) {
 		for (int i = 0; i < PREALLOC_SIZE; i++) {
 			this->__buffer.push_back(this->__cache[i]);
 		}
@@ -78,11 +87,14 @@ void SingletonBuffer::flush_mutex() {
 	}
 	else
 		std::copy(this->__cache.begin(), this->__cache.end(), std::back_inserter(this->__buffer));
-
+*/
 }
 
-SingletonBuffer* SingletonBuffer::__SingletonBuffer = nullptr;;
+//Logger* Logger::__Logger = nullptr;;
 
-void SingletonBuffer::debug() const {
+void Logger::debug() const noexcept{
 	std::cout << "Vector size:" << __buffer.size() << "\nCache size: " << __cache.size() << std::endl;
+}
+
+	}
 }

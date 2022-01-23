@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.16)
 
 option(DEBUG_MODE "Compile in debug mode" ON)
 
@@ -158,21 +158,12 @@ if(ENABLE_TESTING)
         src/imx8m/config/config.cc
     )
 
-	gtest_add_tests(
-        TARGET              tconfig
-		WORKING_DIRECTORY   ${CMAKE_CURRENT_SOURCE_DIR}
-		TEST_LIST           TEST_CONFIG
+    add_executable(
+        tlogger
+        tests/logger.cc
+        src/imx8m/logger/logger.hh
+        src/imx8m/logger/logger.cc
     )
-
-	set_tests_properties(${TEST_CONFIG} PROPERTIES TIMEOUT 30)
-
-	target_link_libraries(
-        tconfig
-        PRIVATE nlohmann_json::nlohmann_json
-                gtest_main
-    )
-
-	target_include_directories(tconfig PUBLIC src)
 
     add_executable(
         tthread
@@ -180,22 +171,6 @@ if(ENABLE_TESTING)
         src/imx8m/thread/thread.hh
         src/imx8m/thread/thread.cc
     )
-
-    gtest_add_tests(
-        TARGET              tthread
-		WORKING_DIRECTORY   ${CMAKE_CURRENT_SOURCE_DIR}
-		TEST_LIST           TEST_THREAD
-    )
-
-	set_tests_properties(${TEST_THREAD} PROPERTIES TIMEOUT 30)
-
-	target_link_libraries(
-        tthread
-        PRIVATE Threads::Threads
-                gtest_main
-    )
-
-	target_include_directories(tthread PUBLIC src)
 
     add_executable(
         tthread_pool
@@ -206,20 +181,43 @@ if(ENABLE_TESTING)
         src/imx8m/thread/thread_pool.cc
     )
 
+	gtest_add_tests(
+        TARGET            tconfig
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+		TEST_LIST         TEST_CONFIG
+    )
+
     gtest_add_tests(
-        TARGET              tthread_pool
-		WORKING_DIRECTORY   ${CMAKE_CURRENT_SOURCE_DIR}
-		TEST_LIST           TEST_THREAD_POOL
+        TARGET            tlogger
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+		TEST_LIST         TEST_LOGGER
     )
 
-	set_tests_properties(${TEST_THREAD_POOL} PROPERTIES TIMEOUT 30)
-
-	target_link_libraries(
-        tthread_pool
-        PRIVATE Threads::Threads
-                gtest_main
+    gtest_add_tests(
+        TARGET            tthread
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+		TEST_LIST         TEST_THREAD
     )
 
+    gtest_add_tests(
+        TARGET            tthread_pool
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+		TEST_LIST         TEST_THREAD_POOL
+    )
+
+	set_tests_properties(${TEST_CONFIG} PROPERTIES TIMEOUT 30)
+    set_tests_properties(${TEST_LOGGER} PROPERTIES TIMEOUT 30)
+    set_tests_properties(${TEST_THREAD} PROPERTIES TIMEOUT 30)
+    set_tests_properties(${TEST_THREAD_POOL} PROPERTIES TIMEOUT 30)
+
+	target_link_libraries(tconfig PRIVATE nlohmann_json::nlohmann_json gtest_main)
+    target_link_libraries(tlogger PRIVATE gtest_main)
+    target_link_libraries(tthread PRIVATE Threads::Threads gtest_main)
+    target_link_libraries(tthread_pool PRIVATE Threads::Threads gtest_main)
+
+    target_include_directories(tconfig PUBLIC src)
+    target_include_directories(tlogger PUBLIC src)
+	target_include_directories(tthread PUBLIC src)
 	target_include_directories(tthread_pool PUBLIC src)
 
 endif()
