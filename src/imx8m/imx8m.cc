@@ -56,7 +56,7 @@ namespace imx8m {
         }
 
         [[gnu::unlikely]] if (bind(__my_socket,
-                              reinterpret_cast<struct sockaddr *>(&__sa),
+                              reinterpret_cast<sockaddr *>(&__sa),
                               sizeof(__sa)) < 0)
         {
             std::cerr << "imx8m: system error: bind" << std::endl;

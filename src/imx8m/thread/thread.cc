@@ -4,7 +4,7 @@ namespace imx8m {
     namespace thread {
 
         bool Thread::in_work() noexcept {
-            std::unique_lock<std::mutex> lock(__jobs_mutex);
+            std::unique_lock<std::mutex> lock(__mutex);
             return !__jobs.empty();
         }
 
@@ -15,17 +15,21 @@ namespace imx8m {
         }
 
         void Thread::swap(Thread& t) noexcept {
-            std::unique_lock<std::mutex> lock(__jobs_mutex);
+            std::unique_lock<std::mutex> lock(__mutex);
             __jobs.swap(t.__jobs);
         }
 
         void Thread::__run() noexcept {
             std::packaged_task<void()> task;
+
             for (;;) {
 
                 {
-                    std::unique_lock<std::mutex> lock(__jobs_mutex);
-                    __cond.wait(lock, [&] { return !__jobs.empty(); });
+                    std::unique_lock<std::mutex> lock(__mutex);
+                    __cond.wait(lock, [&] { return !__jobs.empty() || __stop; });
+                    if (__stop)
+                        return;
+
                     task.swap(__jobs.front());
                     __jobs.pop();
                 }
@@ -35,7 +39,7 @@ namespace imx8m {
 
         void Thread::__add_task(std::packaged_task<void()>&& task) noexcept {
             {
-                std::unique_lock<std::mutex> lock(__jobs_mutex);
+                std::unique_lock<std::mutex> lock(__mutex);
                 __jobs.emplace(std::move(task)); /* Store task<R> as task<void> */
             }
 
