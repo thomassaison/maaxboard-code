@@ -40,6 +40,10 @@ namespace imx8m {
                 return ret;
             }
 
+            size_t get_last_idx() const noexcept {
+                return (__th_first_idx == 0) ? __th_queue.size() - 1 : __th_first_idx - 1;
+            }
+
             void swap(ThreadPool& th) noexcept;
 
             size_t get_current_thread_idx() const noexcept {
