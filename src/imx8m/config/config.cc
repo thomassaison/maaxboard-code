@@ -176,17 +176,17 @@ namespace imx8m {
 
             {
                 std::ifstream stream(path);
-		if (!stream.good()) {
-			__error_str = "Cannot open config";
-			return;
-		}
+		        if (!stream.good()) {
+			        __error_str = "imx8m: config: Cannot open config";
+			        return;
+		        }
                 stream >> json_conf;
             }
 
             /* Config begin by an object */
             [[gnu::unlikely]] if (!json_conf.is_object())
             {
-                __error_str = "Config should begin by a JSON object";
+                __error_str = "imx8m: config: Config should begin by a JSON object";
                 return;
             }
 
@@ -204,7 +204,6 @@ namespace imx8m {
                 if (it0.key() == "is-master") {
                     __config_is_master(it0.value());
                     found_master = true;
-		    std::cout << __is_master << std::endl;
                 }
                 else if (it0.key() == "ip") {
                     __config_self_ip(it0.value());
@@ -214,8 +213,6 @@ namespace imx8m {
                     __config_self_port(it0.value());
                     found_port = true;
                 }
-
-		std::cout << it0.key() << std::endl;
             }
 
             [[gnu::unlikely]] if (!found_ip) {

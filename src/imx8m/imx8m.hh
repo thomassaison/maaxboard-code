@@ -15,31 +15,10 @@
 #define IMX8M_DEFAULT_THPRIO 50
 
 namespace imx8m {
-
-    struct imx8m_packet {
-        uint8_t checksum;
-
-        uint8_t v_major : 4,
-                v_minor : 4;
-
-#define IMX8M_ACK           1
-#define IMX8M_TEST_CON      2
-#define IMX8M_PICTURE_TIMER 3
-#define IMX8M_REJECTED      4
-        uint8_t type;
-
-        uint8_t  reserved1;
-        uint32_t reserved2;
-
-        int64_t duration;
-                
-    } __attribute__((__packed__));
-
     class Imx8m
     {
     public:
         using TimePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
-
         Imx8m() noexcept
             : __error_str{"imx8m: no init"},
               __th_pool{std::thread::hardware_concurrency() - 2}
@@ -63,7 +42,10 @@ namespace imx8m {
             this->init(path.c_str());
         }
 
-        ~Imx8m() noexcept;
+        ~Imx8m() noexcept
+        {
+            this->__flush_all();
+        }
 
         [[noreturn]] void run() noexcept {
             (__is_master) ? __run_master() : __run_default();
@@ -77,12 +59,35 @@ namespace imx8m {
             return !__error_str.empty();
         }
 
+        const std::string& get_error_str() const noexcept {
+            return __error_str;
+        }
+
         static void assert_abi() noexcept {
             static_assert(sizeof(long) == 8);
             static_assert(sizeof(Imx8m) > 10);
         }
 
     private:
+        struct imx8m_packet {
+            uint8_t checksum;
+
+            uint8_t v_major : 4,
+                    v_minor : 4;
+
+#define IMX8M_ACK           1
+#define IMX8M_TEST_CON      2
+#define IMX8M_PICTURE_TIMER 3
+#define IMX8M_REJECTED      4
+            uint8_t type;
+
+            uint8_t  reserved1;
+            uint32_t reserved2;
+
+            int64_t duration;
+                
+        } __attribute__((__packed__));
+
         struct Timerstat {
             Timerstat()
                 : __max{0}, __min{0}
@@ -91,7 +96,7 @@ namespace imx8m {
             std::chrono::nanoseconds __max;
             std::chrono::nanoseconds __min;
         };
-        
+
         int                                  __epoll_fd;
         epoll_event                          __events[10];
         network::UDPSocket_IpV4              __my_socket;
@@ -107,6 +112,8 @@ namespace imx8m {
     
         [[noreturn]] void __run_default() noexcept;
         [[noreturn]] void __run_master() noexcept;
+
+        void __flush_all() noexcept;
 
         static uint8_t checksum(const imx8m_packet *packet) noexcept;
 
@@ -126,11 +133,7 @@ namespace imx8m {
         void __do_stat_connections(const size_t& nb) noexcept;
 
         void __take_picture() noexcept {
-
+            std::cout << "picture taken\n";
         }
     };
-
-    inline long roundMax(long a, long b) {
-        return (a + (b - 1)) / b;
-    }
 };

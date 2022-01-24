@@ -9,8 +9,6 @@
 #include <condition_variable>
 #include <optional>
 
-#include <imx8m/container/ring_vector.hh>
-
 namespace imx8m {
     namespace thread {
         class TimerThread

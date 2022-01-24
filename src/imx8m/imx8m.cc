@@ -9,9 +9,12 @@
 
 #define ARR_SZ(x) (sizeof(x) / sizeof(*(x)))
 
+using namespace std::literals;
+using namespace std::chrono;
+
 namespace imx8m {
 
-    Imx8m::~Imx8m() noexcept {
+    void Imx8m::__flush_all() noexcept {
         __main_logger.flush();
         for (size_t i = 0; i < __th_logger_pool.size(); ++i)
             __th_logger_pool[i].flush();
@@ -42,6 +45,11 @@ namespace imx8m {
 
         __is_master = conf.is_master();
 
+        for (size_t i = 0; i < conf.get_connections().size(); ++i) {
+            __connections.push_back(network::UDPSocket_IpV4(conf.get_connections()[i].get_ip(),
+                                    conf.get_connections()[i].get_port()));
+        }
+
         /* INIT SELF SOCKET */
         __my_socket.init(conf.get_self_ip(), conf.get_self_port());
         if (!__my_socket.is_ok()) {
@@ -57,7 +65,9 @@ namespace imx8m {
 
         /* INIT EPOLL */
 
-        if (__is_master) {
+        if (__is_master)
+            __do_stat_connections(1024);
+        else {
             [[gnu::unlikely]] if ((__epoll_fd = epoll_create1(0)) == -1) {
                 __error_str = "imx8m: system error: epoll_create1";
                 return;
@@ -69,8 +79,6 @@ namespace imx8m {
                 __error_str = "imx8m: system error: epoll_ctl";
                 return;
             }
-
-            __do_stat_connections(1024);
         }
 
         /* INIT THREAD */
@@ -109,6 +117,7 @@ namespace imx8m {
                 /* Exit because epoll_wait can only failed with bad param if errno != EINTR */
 
                 std::cerr << "imx8m: system error: epoll_wait" << std::endl;
+                __flush_all();
                 std::terminate();
             }
 
@@ -136,9 +145,10 @@ namespace imx8m {
 
     void Imx8m::__run_master() noexcept {
         /* No client */
-        [[gnu::unlikely]] if (__timerstat.__max == std::chrono::nanoseconds(0))
+        [[gnu::unlikely]] if (__timerstat.__max == nanoseconds(0))
         {
-            std::cerr << "imx8m: no connection with any clients" << std::endl;
+            std::cerr << "imx8m: no connection with any clients1" << std::endl;
+            __flush_all();
             std::terminate();
         }
 
@@ -149,6 +159,15 @@ namespace imx8m {
         for (;;) {
             std::getline(std::cin, line);
             for (size_t i = 0; i < __connections.size(); ++i) {
+                bzero(&packet, sizeof(packet));
+
+                packet.type = IMX8M_PICTURE_TIMER;
+                packet.v_major = 1;
+                packet.checksum = checksum(&packet);
+
+                auto tmp = high_resolution_clock::now() + __timerstat.__max + 1000ns;
+                packet.duration = duration_cast<nanoseconds>(tmp.time_since_epoch());
+
                 [[gnu::unlikely]] if (__connections[i].send(&packet, sizeof(packet), 0)) {
                     __main_logger.push("imx8m: system error: sendto");
                     continue;
@@ -170,8 +189,7 @@ namespace imx8m {
 
                 switch (packet.type)
                 {
-                case IMX8M_ACK:
-                    break;
+                case IMX8M_ACK: break;
                 case IMX8M_REJECTED:
                     __main_logger.push("imx8m: protocol error: packet rejected");
                     break;
@@ -190,7 +208,7 @@ namespace imx8m {
         [[gnu::unlikely]] if (!check_packet(packet))
             __th_logger_pool[idx].push("imx8m: protocol error: check_packet failed");
         else {
-            __th_timer.queue(TimePoint(std::chrono::nanoseconds(packet->duration)),
+            __th_timer.queue(TimePoint(nanoseconds(packet->duration)),
                              &Imx8m::__take_picture,
                              this);
         }
@@ -210,7 +228,7 @@ namespace imx8m {
                 packet.type = IMX8M_TEST_CON;
                 packet.checksum = checksum(&packet);
 
-                auto start = std::chrono::high_resolution_clock::now();
+                auto start = high_resolution_clock::now();
 
                 [[gnu::unlikely]] if (!__connections[cidx].send(&packet,
                                                                 sizeof(packet),
@@ -234,7 +252,7 @@ namespace imx8m {
                     continue;
                 }
                 
-                auto result = std::chrono::high_resolution_clock::now() - start;
+                auto result = high_resolution_clock::now() - start;
                 __timerstat.__max = std::max(__timerstat.__max, result);
                 __timerstat.__min = std::min(__timerstat.__min, result);
             }
