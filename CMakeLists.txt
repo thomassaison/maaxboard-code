@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 option(DEBUG_MODE "Compile in debug mode" OFF)
 
-option(ENABLE_TESTING "enabling tests" ON)
+option(ENABLE_TESTING "enabling tests" OFF)
 
 # Don't try to enable this option, it doesn't work now
 option(ARM_CROSS_COMPILE "Cross compile for linux arm system" OFF)
@@ -145,12 +145,18 @@ message("-- C++ compiler flags: ${CMAKE_CXX_FLAGS}")
 install(TARGETS imx8m DESTINATION bin)
 if(ENABLE_TESTING)
 
-	FetchContent_Declare(
-		googletest
-		URL https://github.com/google/googletest/archive/609281088cfefc76f9d0ce82e1ff6c30cc3591e5.zip
-	)
+    if(GTest_FOUND)
+        find_package(GTest REQUIRED)
+        include_directories(${GTEST_INCLUDE_DIRS})
+    else()
+        FetchContent_Declare(
+            googletest
+            URL https://github.com/google/googletest/archive/609281088cfefc76f9d0ce82e1ff6c30cc3591e5.zip
+        )
 
-	FetchContent_MakeAvailable(googletest)
+        FetchContent_MakeAvailable(googletest)
+        include(GoogleTest)
+    endif()
 
 	enable_testing()
 
