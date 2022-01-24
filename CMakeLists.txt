@@ -150,6 +150,7 @@ if(ENABLE_TESTING)
 	FetchContent_MakeAvailable(googletest)
 
 	enable_testing()
+    
 	include(GoogleTest)
 
 	add_executable(
@@ -182,6 +183,13 @@ if(ENABLE_TESTING)
         src/imx8m/thread/thread_pool.cc
     )
 
+    add_executable(
+        ttimer_thread
+        tests/timer_thread.cc
+        src/imx8m/thread/timer_thread.hh
+        src/imx8m/thread/timer_thread.cc
+    )
+
 	gtest_add_tests(
         TARGET            tconfig
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -206,19 +214,28 @@ if(ENABLE_TESTING)
 		TEST_LIST         TEST_THREAD_POOL
     )
 
+    gtest_add_tests(
+        TARGET            ttimer_thread
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+		TEST_LIST         TEST_TIMER_THREAD
+    )
+
 	set_tests_properties(${TEST_CONFIG} PROPERTIES TIMEOUT 30)
     set_tests_properties(${TEST_LOGGER} PROPERTIES TIMEOUT 30)
     set_tests_properties(${TEST_THREAD} PROPERTIES TIMEOUT 30)
     set_tests_properties(${TEST_THREAD_POOL} PROPERTIES TIMEOUT 30)
+    set_tests_properties(${TEST_TIMER_THREAD} PROPERTIES TIMEOUT 30)
 
 	target_link_libraries(tconfig PRIVATE nlohmann_json::nlohmann_json gtest_main)
     target_link_libraries(tlogger PRIVATE gtest_main)
     target_link_libraries(tthread PRIVATE Threads::Threads gtest_main)
     target_link_libraries(tthread_pool PRIVATE Threads::Threads gtest_main)
+    target_link_libraries(ttimer_thread PRIVATE Threads::Threads gtest_main)
 
     target_include_directories(tconfig PUBLIC src)
     target_include_directories(tlogger PUBLIC src)
 	target_include_directories(tthread PUBLIC src)
 	target_include_directories(tthread_pool PUBLIC src)
+    target_include_directories(ttimer_thread PUBLIC src)
 
 endif()

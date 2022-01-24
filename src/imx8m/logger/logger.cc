@@ -1,4 +1,5 @@
 #include "logger.hh"
+#include <limits.h>
 
 namespace imx8m{
 	namespace logger{
@@ -6,13 +7,9 @@ namespace imx8m{
 void Logger::push(const std::string &string) noexcept{
 	//lock guard is automatically released when lock goes out of scope
 	const std::lock_guard<std::mutex> lock(this->__mutex);
-	std::cout << "PUSH : before\n";
-	debug();
 	if (this->__buffer.size() + string.size() + 1 > PREALLOC_SIZE)
 		this->__full = true;
 	this->my_push(string);
-	std::cout << "PUSH: after\n";
-	debug();
 }
 
 void Logger::my_push(const std::string& s) noexcept{
@@ -25,24 +22,6 @@ void Logger::my_push(const std::string& s) noexcept{
 		this->__cache.push_back('\n');
 	}
 }
-
-/*
-void Logger::init(const std::string &string) {
-	std::cout << "init\n";
-	debug();
-	this->__file.exceptions(std::ifstream::badbit);
-	try {
-		this->__file.open(string);
-	}
-	catch (const std::ifstream::failure e) {
-		this->__error = true;
-	}
-	if ((this->__file.rdstate() & std::ifstream::failbit) != 0)
-		this->__error = true;
-
-}
-*/
-
 
 void Logger::swap(Logger &sb) noexcept{
 		std::unique_lock<std::mutex> l1(__mutex);
@@ -62,38 +41,45 @@ void Logger::flush() noexcept{
 }
 
 void Logger::flush_mutex() noexcept{
+	size_t count = 0;
 	ssize_t ret;
 
-	while((ret = write(__file, __buffer.data(), __buffer.size() * sizeof(char))) < 0)
-		if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK)
+	do {
+		ret = write(__file, __buffer.data(), __buffer.size() * sizeof(char));
+		if (ret < 0) {
+			if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
+				continue;
 			break;
+		}
+		count += static_cast<size_t>(ret & SSIZE_MAX);
+	} while(count < __buffer.size());
+
 
 	this->__buffer.clear();
 	this->__full = false;
 
 	if (!__cache.empty()){
-		while((ret = write(__file, __buffer.data(), __buffer.size() * sizeof(char))) < 0)
-			if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK)
+		count = 0;
+		do {
+			ret = write(__file, __cache.data(), __cache.size() * sizeof(char));
+			if (ret < 0) {
+				if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
+					continue;
 				break;
+			}
+			count += static_cast<size_t>(ret & SSIZE_MAX);
+		} while(count < __cache.size());
+
 		__cache.clear();
 	}
-/*	if (this->__cache.size() >= PREALLOC_SIZE) {
-		for (int i = 0; i < PREALLOC_SIZE; i++) {
-			this->__buffer.push_back(this->__cache[i]);
-		}
-		//std::copy(this->__cache.begin(), this->__cache.begin() + PREALLOC_SIZE, std::back_inserter(this->__buffer));
-		this->__cache.erase(this->__cache.begin(), this->__cache.begin() + PREALLOC_SIZE);
-		this->flush_mutex();
-	}
-	else
-		std::copy(this->__cache.begin(), this->__cache.end(), std::back_inserter(this->__buffer));
-*/
 }
 
-//Logger* Logger::__Logger = nullptr;;
-
 void Logger::debug() const noexcept{
-	std::cout << "Vector size:" << __buffer.size() << "\nCache size: " << __cache.size() << std::endl;
+	std::cout << "Vector size:" << __buffer.size() << "\nCache size: " << __cache.size() << "\nCapacity: "<< __buffer.capacity() << '\n';
+	for (size_t i =0; i < __buffer.size(); i++){
+		std::cout << __buffer[i];
+	}
+	std::cout << std::endl;
 }
 
 	}

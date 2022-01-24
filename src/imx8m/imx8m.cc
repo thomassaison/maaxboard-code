@@ -94,8 +94,6 @@ namespace imx8m {
 
             exit(EXIT_FAILURE);
         }
-
-        /* TODO: __th_picture = std::thread(); epoll_event; etc... */
     }
 
     void Imx8m::__run_default() noexcept {

@@ -19,8 +19,10 @@ class Logger
 {
 public:
 	Logger(const size_t size = PREALLOC_SIZE) noexcept
-		: __buffer(size), __file{-1}
-	{}
+		:__file{-1}
+	{
+		this->__buffer.reserve(size);
+	}
 
 	Logger(const char *path, const size_t size = PREALLOC_SIZE) noexcept
 		: Logger(size)
@@ -55,10 +57,8 @@ public:
 	}
 
 	void open(const char *string) noexcept{
-		this->__file = ::open(string, O_APPEND | O_CREAT, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+		this->__file = ::open(string, O_APPEND | O_CREAT | O_WRONLY, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
 	}
-
-//	void init(const std::string &string)noexcept;
 
 	void push(const std::string& string) noexcept;
 
