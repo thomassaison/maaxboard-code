@@ -11,70 +11,66 @@
 
 namespace imx8m {
 
-    Imx8m::Imx8m(const char *path) noexcept {
+    Imx8m::~Imx8m() noexcept {
+        __main_logger.flush();
+        for (size_t i = 0; i < __th_logger_pool.size(); ++i)
+            __th_logger_pool[i].flush();
+    }
+
+    uint8_t Imx8m::checksum(const imx8m_packet *packet) noexcept {
+        size_t i;
+        uint8_t res;
+        const uint8_t *tmp = reinterpret_cast<const uint8_t *>(packet);
+        res = 0;
+        ++tmp;
+        for (i = 0; i < sizeof(*packet); ++i)
+            res += tmp[i];
+        res = ~res;
+        return res;
+    }
+
+    void Imx8m::init(const char *path) noexcept {
         struct sched_param param;
         struct epoll_event ev;
 
         config::Config conf(path);
 
         if (!conf.is_ok()) {
-            std::cerr << "imx8m: "
-                      << path
-                      << ": "
-                      << conf.get_error_str()
-                      << std::endl;
-
-            exit(EXIT_FAILURE);
+            __error_str = conf.get_error_str();
+            return;
         }
+
+        __is_master = conf.is_master();
 
         /* INIT SELF SOCKET */
-
-        bzero(&__sa, sizeof(__sa));
-
-        __sa.sin_family = AF_INET;
-        [[gnu::unlikely]] if (inet_pton(AF_INET,
-                                        conf.get_self_ip().c_str(),
-                                        &__sa.sin_addr) != 1)
-        {
-            std::cerr << "imx8m: "
-                      << path
-                      << ": "
-                      << conf.get_self_ip()
-                      << ": is not a valid ipv4 address"
-                      << std::endl;
-
-            exit(EXIT_FAILURE);
-        }
-        __sa.sin_port = htons(conf.get_self_port());
-
-        [[gnu::unlikely]] if ((__my_socket = socket(AF_INET,
-                                                    SOCK_DGRAM | SOCK_NONBLOCK,
-                                                    0)) < 0)
-        {
-            std::cerr << "imx8m: system error: socket" << std::endl;
-            exit(EXIT_FAILURE);
+        __my_socket.init(conf.get_self_ip(), conf.get_self_port());
+        if (!__my_socket.is_ok()) {
+            __error_str = "imx8m: system error: socket";
+            return;
         }
 
-        [[gnu::unlikely]] if (bind(__my_socket,
-                              reinterpret_cast<sockaddr *>(&__sa),
-                              sizeof(__sa)) < 0)
+        [[gnu::unlikely]] if (!__my_socket.bind())
         {
-            std::cerr << "imx8m: system error: bind" << std::endl;
-            exit(EXIT_FAILURE);
+            __error_str = "imx8m: system error: bind";
+            return;
         }
 
         /* INIT EPOLL */
 
-        [[gnu::unlikely]] if ((__epoll_fd = epoll_create1(0)) == -1) {
-            std::cerr << "imx8m: system error: epoll_create1" << std::endl;
-            exit(EXIT_FAILURE);
-        }
+        if (__is_master) {
+            [[gnu::unlikely]] if ((__epoll_fd = epoll_create1(0)) == -1) {
+                __error_str = "imx8m: system error: epoll_create1";
+                return;
+            }
 
-        ev.data.fd = __my_socket;
-        ev.events = EPOLLIN;
-        if (epoll_ctl(__epoll_fd, EPOLL_CTL_ADD, __my_socket, &ev) == -1) {
-            std::cerr << "imx8m: system error: epoll_ctl" << std::endl;
-            exit(EXIT_FAILURE);
+            ev.data.fd = __my_socket;
+            ev.events = EPOLLIN;
+            if (epoll_ctl(__epoll_fd, EPOLL_CTL_ADD, __my_socket, &ev) == -1) {
+                __error_str = "imx8m: system error: epoll_ctl";
+                return;
+            }
+
+            __do_stat_connections(1024);
         }
 
         /* INIT THREAD */
@@ -89,20 +85,16 @@ namespace imx8m {
                                                        IMX8M_DEFAULT_THPRIO
                                                        + 5))
         {
-            std::cerr << "imx8m: system error: pthread_setschedparam"
-                      << std::endl;
-
-            exit(EXIT_FAILURE);
+            __error_str = "imx8m: system error: pthread_setschedparam";
+            return;
         }
     }
 
     void Imx8m::__run_default() noexcept {
         int nfd;
-        ssize_t ret;
         socklen_t socklen;
 
         imx8m_packet *packet;
-
 
         for (;;) {
 
@@ -115,39 +107,138 @@ namespace imx8m {
                     continue;
 
                 /* Exit because epoll_wait can only failed with bad param if errno != EINTR */
+
                 std::cerr << "imx8m: system error: epoll_wait" << std::endl;
-                exit(EXIT_FAILURE);
+                std::terminate();
             }
 
             for (int i = 0; i < nfd; ++i) {
                 packet = new(std::nothrow) imx8m_packet;
 
-                [[gnu::unlikely]] if (packet == nullptr)
-                    break;
-
-                [[gnu::unlikely]] while ((ret = recvfrom(__my_socket,
-                                                         packet,
-                                                         sizeof(*packet),
-                                                         0 /* flags */,
-                                                         reinterpret_cast<sockaddr *>(&__sa),
-                                                         &socklen) == -1))
-                {
-                    if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)
-                        break;
+                [[gnu::unlikely]] if (packet == nullptr) {
+                    __main_logger.push("imx8m: system error: out of memory");
+                    continue;
                 }
 
-                [[gnu::unlikely]] if (ret == -1)
-                    break;
+                [[gnu::unlikely]] if (!__my_socket.recv(packet,
+                                                        sizeof(*packet),
+                                                        0,
+                                                        &socklen))
+                {
+                    __main_logger.push("imx8m: system error: recvfrom");
+                    continue;
+                }
 
                 __th_pool.queue(&Imx8m::__do_recv, this, packet);
             }
         }
-        // TODO
     }
 
     void Imx8m::__run_master() noexcept {
-        // TODO
-        for(;;)
-            continue;
+        /* No client */
+        [[gnu::unlikely]] if (__timerstat.__max == std::chrono::nanoseconds(0))
+        {
+            std::cerr << "imx8m: no connection with any clients" << std::endl;
+            std::terminate();
+        }
+
+        imx8m_packet packet;
+        socklen_t len;
+        std::string line;
+
+        for (;;) {
+            std::getline(std::cin, line);
+            for (size_t i = 0; i < __connections.size(); ++i) {
+                [[gnu::unlikely]] if (__connections[i].send(&packet, sizeof(packet), 0)) {
+                    __main_logger.push("imx8m: system error: sendto");
+                    continue;
+                }
+
+                [[gnu::unlikely]] if (!__connections[i].recv(&packet,
+                                                             sizeof(packet),
+                                                             0,
+                                                             &len))
+                {
+                    __main_logger.push("imx8m: system error: recvfrom");
+                    continue;
+                }
+
+                [[gnu::unlikely]] if (!check_packet(packet)) {
+                    __main_logger.push("imx8m: protocol error: check_packet failed");
+                    continue;
+                }
+
+                switch (packet.type)
+                {
+                case IMX8M_ACK:
+                    break;
+                case IMX8M_REJECTED:
+                    __main_logger.push("imx8m: protocol error: packet rejected");
+                    break;
+                
+                default:
+                    __main_logger.push("imx8m: protocol error: packet type failed");
+                    break;
+                }
+            }
+        }
+    }
+
+    void Imx8m::__do_recv(const imx8m_packet *packet) noexcept {
+        const size_t idx = __th_pool.get_last_idx();
+
+        [[gnu::unlikely]] if (!check_packet(packet))
+            __th_logger_pool[idx].push("imx8m: protocol error: check_packet failed");
+        else {
+            __th_timer.queue(TimePoint(std::chrono::nanoseconds(packet->duration)),
+                             &Imx8m::__take_picture,
+                             this);
+        }
+        delete packet;
+    }
+
+    [[gnu::cold]]
+    void Imx8m::__do_stat_connections(const size_t& nb) noexcept {
+        imx8m_packet packet;    
+        socklen_t len;
+
+        for (size_t cidx = 0; cidx < __connections.size(); ++cidx) {
+            for (size_t i = 0; i < nb; ++i) {
+                bzero(&packet, sizeof(packet));
+
+                packet.v_major = 1;
+                packet.type = IMX8M_TEST_CON;
+                packet.checksum = checksum(&packet);
+
+                auto start = std::chrono::high_resolution_clock::now();
+
+                [[gnu::unlikely]] if (!__connections[cidx].send(&packet,
+                                                                sizeof(packet),
+                                                                0))
+                {
+                    __error_str = "imx8m: system error: sendto";
+                    continue;
+                }
+
+                [[gnu::unlikely]] if (__connections[cidx].recv(&packet,
+                                                               sizeof(packet),
+                                                               0,
+                                                               &len))
+                {
+                    __error_str = "imx8m: system error: recvfrom";
+                    continue;
+                }
+
+                [[gnu::unlikely]] if (!check_packet(packet)) {
+                    __error_str = "imx8m: protocol error: check_packet failed";
+                    continue;
+                }
+                
+                auto result = std::chrono::high_resolution_clock::now() - start;
+                __timerstat.__max = std::max(__timerstat.__max, result);
+                __timerstat.__min = std::min(__timerstat.__min, result);
+            }
+        }
+        
     }
 }

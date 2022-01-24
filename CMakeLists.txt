@@ -117,7 +117,9 @@ set(IMX8M_SRC
     src/imx8m/config/config.cc
     src/imx8m/thread/thread.cc
     src/imx8m/thread/thread_pool.cc
-    src/imx8m/thread/timer_thread.cc)
+    src/imx8m/thread/timer_thread.cc
+    src/imx8m/network/udp_socket_ipv4.cc
+    src/imx8m/logger/logger.cc)
 
 set(IMX8M_HDR
     src/imx8m/imx8m.hh
@@ -125,7 +127,8 @@ set(IMX8M_HDR
     src/imx8m/thread/thread.hh
     src/imx8m/thread/thread_pool.hh
     src/imx8m/thread/timer_thread.hh
-    src/imx8m/container/ring_vector.hh)
+    src/imx8m/network/udp_socket_ipv4.hh
+    src/imx8m/logger/logger.hh)
 
 add_executable(imx8m ${IMX8M_SRC} ${IMX8M_HDR})
 
@@ -149,7 +152,7 @@ if(ENABLE_TESTING)
 	FetchContent_MakeAvailable(googletest)
 
 	enable_testing()
-    
+
 	include(GoogleTest)
 
 	add_executable(

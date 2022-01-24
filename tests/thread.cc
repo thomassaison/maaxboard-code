@@ -3,6 +3,7 @@
 #include "imx8m/thread/thread.hh"
 
 using namespace imx8m::thread;
+using namespace std::literals;
 
 namespace {
     TEST(Thread, constructors) {
