@@ -239,9 +239,9 @@ if(ENABLE_TESTING)
 
 	target_link_libraries(tconfig PRIVATE nlohmann_json::nlohmann_json ${GTEST_BOTH_LIBRARIES})
     target_link_libraries(tlogger PRIVATE ${GTEST_BOTH_LIBRARIES})
-    target_link_libraries(tthread PRIVATE ${GTEST_BOTH_LIBRARIES} Threads::Threads )
-    target_link_libraries(tthread_pool PRIVATE ${GTEST_BOTH_LIBRARIES} Threads::Threads)
-    target_link_libraries(ttimer_thread PRIVATE ${GTEST_BOTH_LIBRARIES} Threads::Threads)
+    target_link_libraries(tthread PRIVATE ${GTEST_BOTH_LIBRARIES} pthread)
+    target_link_libraries(tthread_pool PRIVATE ${GTEST_BOTH_LIBRARIES} pthread)
+    target_link_libraries(ttimer_thread PRIVATE ${GTEST_BOTH_LIBRARIES} pthread)
 
     target_include_directories(tconfig PUBLIC src)
     target_include_directories(tlogger PUBLIC src)
