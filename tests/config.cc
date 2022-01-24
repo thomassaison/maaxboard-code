@@ -21,6 +21,9 @@ namespace {
         
         EXPECT_TRUE(configMaster.is_master());
         EXPECT_FALSE(configDefault.is_master());
+
+        EXPECT_EQ(configMaster.get_connections().size(), 1);
+        EXPECT_EQ(configDefault.get_connections().size(), 1);
     }
 
     TEST(Config, wrongJson) {
@@ -48,7 +51,6 @@ namespace {
         
         EXPECT_EQ(configMaster.get_self_port(), 8080);
         EXPECT_EQ(configDefault.get_self_port(), 8081);
-
     }
 
     TEST(Config, checkIpsValue) {

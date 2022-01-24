@@ -14,7 +14,7 @@ namespace{
     }
 
     void destroyfile(imx8m::logger::Logger &logger){
-        EXPECT_TRUE(logger.is_okay());
+        EXPECT_TRUE(logger.is_ok());
         if (unlink(testfile.c_str()) != 0)
             FAIL();
         else
@@ -24,7 +24,7 @@ namespace{
     TEST(Logger, NewFile){
         std::string file = "test.txt";
         imx8m::logger::Logger sb(file);
-        ASSERT_TRUE(sb.is_okay());
+        ASSERT_TRUE(sb.is_ok());
         if (unlink(file.c_str()) != 0)
             FAIL();
 
@@ -32,22 +32,22 @@ namespace{
 
     TEST(Logger, noFile){
         imx8m::logger::Logger log;
-        EXPECT_FALSE(log.is_okay());
+        EXPECT_FALSE(log.is_ok());
     }
 
     TEST(Logger, SimpleFile){
         imx8m::logger::Logger log;
-        EXPECT_FALSE(log.is_okay());
+        EXPECT_FALSE(log.is_ok());
     }
 
     TEST(Logger, fileExist){
         imx8m::logger::Logger log(testfile);
-        EXPECT_TRUE(log.is_okay());
+        EXPECT_TRUE(log.is_ok());
     }
 
     TEST(Logger, simplepush){
         imx8m::logger::Logger log(testfile);
-        EXPECT_TRUE(log.is_okay());
+        EXPECT_TRUE(log.is_ok());
         
         log.push("this is a test");
         destroyfile(log);
@@ -55,14 +55,14 @@ namespace{
 
     TEST(Logger, simpleWrite){
         imx8m::logger::Logger log(testfile);
-        EXPECT_TRUE(log.is_okay());
+        EXPECT_TRUE(log.is_ok());
         std::string content = "this is a test";
         log.push(content);
         log.debug();
-        ASSERT_TRUE(log.is_okay());
+        ASSERT_TRUE(log.is_ok());
 
         log.flush();
-        ASSERT_TRUE(log.is_okay());
+        ASSERT_TRUE(log.is_ok());
 
        checkContent(content+='\n');
        //destroyfile(log);

@@ -239,7 +239,7 @@ if(ENABLE_TESTING)
 
 	target_link_libraries(tconfig PRIVATE ${CMAKE_THREAD_LIBS_INIT} nlohmann_json::nlohmann_json ${GTEST_BOTH_LIBRARIES})
     target_link_libraries(tlogger PRIVATE ${CMAKE_THREAD_LIBS_INIT} ${GTEST_BOTH_LIBRARIES})
-    target_link_libraries(tthread PRIVATE ${CMAKE_THREAD_LIBS_INIT} ${GTEST_BOTH_LIBRARIES} Threads::Threads )
+    target_link_libraries(tthread PRIVATE ${CMAKE_THREAD_LIBS_INIT} ${GTEST_BOTH_LIBRARIES} Threads::Threads)
     target_link_libraries(tthread_pool PRIVATE ${CMAKE_THREAD_LIBS_INIT} ${GTEST_BOTH_LIBRARIES} Threads::Threads)
     target_link_libraries(ttimer_thread PRIVATE ${CMAKE_THREAD_LIBS_INIT} ${GTEST_BOTH_LIBRARIES} Threads::Threads)
 

@@ -35,8 +35,10 @@ namespace imx8m {
 
         void Config::__config_master(nlohmann::json& conf) noexcept {
             bool found_port, found_ip;
-            unsigned short port;
+            uint16_t port;
             std::string ip;
+
+            port = 0;
 
             for(auto it0 = conf.begin(); it0 != conf.end(); ++it0)
             {

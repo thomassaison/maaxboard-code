@@ -79,7 +79,7 @@ namespace imx8m{
 				return this->__buffer;
 			}
 
-			bool is_okay() const noexcept {
+			bool is_ok() const noexcept {
 				return !this->__error && __file >= 0;
 			}
 

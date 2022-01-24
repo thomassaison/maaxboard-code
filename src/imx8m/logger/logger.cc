@@ -49,7 +49,7 @@ namespace imx8m{
 
 			do {
 				ret = write(fd, ptr + count, size - count);
-				if (ret < 0) {
+				[[gnu::unlikely]] if (ret < 0) {
 					if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
 						continue;
 					break;

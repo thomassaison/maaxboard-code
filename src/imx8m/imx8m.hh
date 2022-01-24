@@ -47,6 +47,24 @@ namespace imx8m {
             this->__flush_all();
         }
 
+        bool in(const sockaddr_in *addr) const noexcept {
+            for (auto elm: __connections_sa) {
+                if (elm.sin_addr.s_addr == addr->sin_addr.s_addr
+                    && elm.sin_port == addr->sin_port
+                    && elm.sin_family == AF_INET)
+                    return true;
+            }
+            return false;
+        }
+
+        bool in(const sockaddr *addr, const socklen_t len) const noexcept {
+            for (auto elm: __connections_sa) {
+                if (memcmp(addr, &elm, len) == 0)
+                    return true;
+            }
+            return false;
+        }
+
         [[noreturn]] void run() noexcept {
             (__is_master) ? __run_master() : __run_default();
         }
@@ -70,7 +88,6 @@ namespace imx8m {
 
     private:
         struct imx8m_packet {
-            uint8_t checksum;
 
             uint8_t v_major : 4,
                     v_minor : 4;
@@ -81,7 +98,8 @@ namespace imx8m {
 #define IMX8M_REJECTED      4
             uint8_t type;
 
-            uint8_t  reserved1;
+            uint16_t checksum;
+
             uint32_t reserved2;
 
             int64_t duration;
@@ -97,16 +115,18 @@ namespace imx8m {
             std::chrono::nanoseconds __min;
         };
 
-        int                                  __epoll_fd;
-        epoll_event                          __events[10];
-        network::UDPSocket_IpV4              __my_socket;
-        bool                                 __is_master;
-        std::string                          __error_str;
-        std::vector<network::UDPSocket_IpV4> __connections;
-        logger::Logger                       __main_logger;
-        std::vector<logger::Logger>          __th_logger_pool;
-        thread::ThreadPool                   __th_pool;
-        thread::TimerThread                  __th_timer;
+        int                                  __epoll_fd; // OK
+        epoll_event                          __events[10]; // OK
+        sockaddr_in                          __sa; // OK
+        std::vector<sockaddr_in>             __connections_sa; // TODO
+        network::UDPSocket_IpV4              __my_socket; // OK
+        bool                                 __is_master; // OK
+        std::string                          __error_str; // OK
+        std::vector<network::UDPSocket_IpV4> __th_sockets; // OK
+        logger::Logger                       __main_logger; // OK
+        std::vector<logger::Logger>          __th_logger_pool; // OK
+        thread::ThreadPool                   __th_pool; // OK
+        thread::TimerThread                  __th_timer; // OK
 
         Timerstat                            __timerstat;
     
@@ -115,19 +135,29 @@ namespace imx8m {
 
         void __flush_all() noexcept;
 
-        static uint8_t checksum(const imx8m_packet *packet) noexcept;
+        static uint16_t checksum(const imx8m_packet *packet) noexcept;
 
         static bool check_packet(const imx8m_packet *packet) {
+//#ifndef NDEBUG
+            if (packet->v_major != 1)
+                std::cout << "check_packet: Bad majeur" << std::endl;
+            if (packet->v_minor != 0)
+                std::cout << "check_packet: Bad minor" << std::endl;
+            /*if (packet->checksum != checksum(packet))
+                std::cout << "check_packet: Bad checksum" << std::endl;*/
+//#endif /* NDEBUG */
             return packet->v_major == 1
-                && packet->v_minor == 0
-                && packet->checksum == checksum(packet);
+                && packet->v_minor == 0;
+               // && packet->checksum == checksum(packet);
         }
 
         static bool check_packet(const imx8m_packet& packet) {
             return check_packet(&packet);
         }
 
-        void __do_recv(const imx8m_packet *packet) noexcept;
+        void __do_recv(const imx8m_packet *packet,
+                       const sockaddr *addr,
+                       const socklen_t len) noexcept;
 
         [[gnu::cold]]
         void __do_stat_connections(const size_t& nb) noexcept;

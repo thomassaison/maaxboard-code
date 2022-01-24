@@ -9,11 +9,10 @@ namespace imx8m {
     namespace config {
         class ConfigHost {
         public:
-            ConfigHost(const std::string& ip, const unsigned short port) noexcept
-                : __ip{ip}
-            {
-                __port = port;
-            }
+            ConfigHost(const std::string& ip, const uint16_t port) noexcept
+                : __ip{ip},
+                  __port{port}
+            {}
 
             ConfigHost()  = default;
             ~ConfigHost() = default;
@@ -30,13 +29,13 @@ namespace imx8m {
                 return __ip;
             }
 
-            unsigned short get_port() const noexcept {
+            uint16_t get_port() const noexcept {
                 return __port;
             }
 
         private:
-            std::string    __ip;
-            unsigned short __port;
+            std::string __ip;
+            uint16_t    __port = 0 ;
         };
 
         class Config {

@@ -13,24 +13,8 @@ namespace imx8m {
         {
         public:
             UDPSocket_IpV4() noexcept
-                : __socket{-1}
+                : __socket{socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0)}
             {}
-
-            UDPSocket_IpV4(const char *ip, const uint16_t port) noexcept
-            {
-                this->init(ip, port);
-            }
-
-            UDPSocket_IpV4(const std::string& ip, const uint16_t port) noexcept
-                : UDPSocket_IpV4(ip.c_str(), port)
-            {}
-
-            void init(const char *ip, const uint16_t port) noexcept;
-
-            void init(const std::string& ip, const uint16_t port) noexcept
-            {
-                this->init(ip.c_str(), port);
-            }
 
             UDPSocket_IpV4(const UDPSocket_IpV4&) = delete;
 
@@ -38,12 +22,6 @@ namespace imx8m {
                 : UDPSocket_IpV4()
             {
                 this->swap(other);
-            }
-
-            UDPSocket_IpV4& operator=(const UDPSocket_IpV4&) = delete;
-            UDPSocket_IpV4& operator=(UDPSocket_IpV4&& other) noexcept {
-                this->swap(other);
-                return *this;
             }
 
             ~UDPSocket_IpV4() noexcept {
@@ -55,34 +33,6 @@ namespace imx8m {
                return __socket;
             }
 
-            operator const char *() const noexcept {
-               return __ip.c_str();
-            }
-
-            operator std::string() const noexcept {
-               return __ip;
-            }
-
-            operator uint16_t() const noexcept {
-               return __port;
-            }
-
-            bool operator==(const sockaddr *addr) const noexcept {
-                return memcmp(&__sa, addr, sizeof(__sa));
-            }
-
-            bool operator==(const sockaddr& addr) const noexcept {
-                return this->operator==(&addr);
-            }
-
-            bool operator!=(const sockaddr *addr) const noexcept {
-                return !this->operator==(addr);
-            }
-
-            bool operator!=(const sockaddr& addr) const noexcept {
-                return !this->operator==(addr);
-            }
-
             bool is_ok() const noexcept {
                 return __socket != -1;
             }
@@ -92,21 +42,21 @@ namespace imx8m {
             bool recv(void *buf,
                       const size_t size,
                       const int flags,
+                      sockaddr *addr,
                       socklen_t *len) noexcept;
 
             bool send(const void *buf,
                       const size_t size,
-                      const int flags) noexcept;
+                      const int flags,
+                      const sockaddr *addr,
+                      const socklen_t len) noexcept;
 
-            bool bind() noexcept {
-                return ::bind(__socket, reinterpret_cast<sockaddr *>(&__sa), sizeof(__sa)) == 0;
+            bool bind(const sockaddr *sa, const socklen_t len) noexcept {
+                return ::bind(__socket, sa, len) == 0;
             }
-
+            
         private:
-            int         __socket = -1;
-            std::string __ip;
-            uint16_t    __port;
-            sockaddr_in __sa;
+            int __socket;
         };
     }
 }
