@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 
-option(DEBUG_MODE "Compile in debug mode" ON)
+option(DEBUG_MODE "Compile in debug mode" OFF)
 
-option(ENABLE_TESTING "enabling tests" ON)
+option(ENABLE_TESTING "enabling tests" OFF)
 
 # Don't try to enable this option, it doesn't work now
 option(ARM_CROSS_COMPILE "Cross compile for linux arm system" OFF)
