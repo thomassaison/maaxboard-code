@@ -166,7 +166,7 @@ namespace imx8m {
                 packet.checksum = checksum(&packet);
 
                 auto tmp = high_resolution_clock::now() + __timerstat.__max + 1000ns;
-                packet.duration = duration_cast<nanoseconds>(tmp.time_since_epoch());
+                packet.duration = duration_cast<nanoseconds>(tmp.time_since_epoch()).count();
 
                 [[gnu::unlikely]] if (__connections[i].send(&packet, sizeof(packet), 0)) {
                     __main_logger.push("imx8m: system error: sendto");
